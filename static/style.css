@@ -1,0 +1,146 @@
+/* Styles généraux pour le corps de la page */
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #f4f7f6; /* Gris clair */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+}
+
+/* Conteneur de l'application (pour l'ombre générale) */
+#app-container {
+    width: 90%; /* Prend 90% de la largeur de l'écran */
+    /* 💥 CORRECTION DE LARGEUR : Augmentation de la taille maximale */
+    max-width: 1500px; 
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.925); 
+    border-radius: 15px;
+    overflow: hidden;
+    background-color: white;
+    
+    /* Propriétés de hauteur et de flexbox (conservées) */
+    height: 100vh; 
+    display: flex;
+    flex-direction: column; 
+}
+
+/* En-tête du Chatbot avec le Dégradé (Turquoise) */
+#main-header {
+    /* Dégradé de couleurs : Turquoise / Cyan */
+    background: linear-gradient(135deg, #008080 0%, #40E0D0 100%);
+    color: white;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+.logo-title {
+    display: flex;
+    align-items: center;
+}
+
+.logo-title h1 {
+    margin: 0;
+    font-size: 1.4em;
+    padding-left: 10px;
+}
+
+#user-name {
+    font-weight: bold;
+    margin-right: 10px;
+}
+
+#logout-button {
+    background-color: #A0522D; /* Couleur Roux/Terracotta */
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.3s;
+}
+
+/* Corps du Chat */
+#chat-container {
+    flex-grow: 1; /* S'étend pour prendre la hauteur disponible */
+    display: flex;
+    flex-direction: column;
+}
+
+/* Zone d'affichage des messages */
+#chat-display {
+    flex-grow: 1; /* TRÈS IMPORTANT: Cette zone prend tout l'espace vertical libre */
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- Styles des boutons d'action rapide --- */
+#quick-actions {
+    display: flex;
+    overflow-x: auto; 
+    padding: 10px 20px;
+    border-top: 1px solid #eeeeee; /* Gris */
+    background-color: #fcfcfc;
+}
+
+.action-btn {
+    flex-shrink: 0; 
+    background-color: #e0f7fa; /* Très clair turquoise */
+    color: #008080; /* Texte turquoise */
+    border: none;
+    padding: 8px 15px;
+    margin-right: 8px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.action-btn:hover {
+    background-color: #b2ebf2;
+}
+/* ------------------------------------------ */
+
+/* Zone de saisie */
+#chat-input-area {
+    display: flex;
+    padding: 15px 20px;
+    border-top: 1px solid #eeeeee; /* Gris */
+}
+
+#user-input {
+    flex-grow: 1;
+    padding: 12px;
+    border: 1px solid #cccccc; /* Gris */
+    border-radius: 25px;
+    margin-right: 10px;
+    font-size: 1em;
+    outline: none;
+}
+
+#send-button {
+    background-color: #009688; /* Vert Émeraude */
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 45px;
+    height: 45px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    font-size: 1.2em;
+}
+
+#send-button:hover {
+    background-color: #00695c;
+}
+
+/* Suppression des styles #chat-box non utilisés */

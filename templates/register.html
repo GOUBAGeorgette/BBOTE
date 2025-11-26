@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inscription - Assistant Bancaire</title>
+    <style>
+        /* Styles CSS similaires à login.html */
+        body { font-family: 'Roboto', sans-serif; background: linear-gradient(135deg, #7952B3 0%, #E36477 100%); height: 100vh; display: flex; justify-content: center; align-items: center; margin: 0; color: #333; }
+        .register-box { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); width: 300px; text-align: center; }
+        h1 { color: #007bff; margin-bottom: 15px; font-size: 1.5em; }
+        input[type="text"], input[type="email"], input[type="password"] { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        button { background-color: #00cc66; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; width: 100%; margin-top: 10px; transition: background-color 0.3s; }
+        button:hover { background-color: #00a052; }
+        .error { color: #e54c5f; margin-top: 10px; }
+        .link-to-login { margin-top: 15px; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <div class="register-box">
+        <h1>✨ Inscription</h1>
+        <form method="POST">
+            <input type="text" name="prenom" placeholder="Prénom" required>
+            <input type="text" name="nom" placeholder="Nom" required>
+            <input type="email" name="email" placeholder="Email" required>
+            <input type="password" name="password" placeholder="Mot de passe" required>
+            <input type="password" name="confirm_password" placeholder="Confirmer le mot de passe" required>
+            <button type="submit">S'inscrire</button>
+        </form>
+        {% if error %}
+            <p class="error">{{ error }}</p>
+        {% endif %}
+        <p class="link-to-login">
+            Vous avez déjà un compte ? <a href="{{ url_for('login') }}">Connectez-vous ici.</a>
+        </p>
+    </div>
+</body>
+</html>

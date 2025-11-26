@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assistant Bancaire - Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div id="app-container">
+        
+        <header id="main-header">
+            <div class="logo-title">
+                <span style="font-size: 1.5em;">🏦</span> 
+                <h1>BanqueBot</h1>
+            </div>
+            <div>
+                <span id="user-name">{{ username }}</span> 
+                <button onclick="window.location.href='{{ url_for('logout') }}'" id="logout-button">Déconnexion</button>
+            </div>
+        </header>
+
+        <div id="chat-container">
+            
+            <div id="chat-display">
+                <div class="bot-message">  Bienvenue au BanqueBot votre assistant virtuel. Que puis-je faire pour vous ?</div>
+            </div>
+
+            <div id="quick-actions">
+                <button class="action-btn" data-action="Quel est mon solde courant ?">💰 Mon solde</button>
+                <button class="action-btn" data-action="Faire un virement">💸 Virement</button>
+                <button class="action-btn" data-action="Historique des transactions">📜 Historique</button>
+                <button class="action-btn" data-action="Aide">❓ Aide</button>
+            </div>
+
+            <div id="chat-input-area">
+                <input type="text" id="user-input" placeholder="Posez votre question...">
+                <button id="send-button">➤</button>
+            </div>
+            
+        </div>
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const chatDisplay = document.getElementById('chat-display');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const quickActionButtons = document.querySelectorAll('#quick-actions .action-btn');
+
+        // Écouteurs pour le bouton d'envoi et la touche Entrée
+        sendButton.addEventListener('click', () => {
+            sendMessage(userInput.value.trim());
+        });
+
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage(userInput.value.trim());
+            }
+        });
+        
+        // Écouteurs pour les boutons d'actions rapides
+        quickActionButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const actionText = button.getAttribute('data-action');
+                sendMessage(actionText); // Utilise la même fonction pour envoyer le message
+            });
+        });
+
+        // Fonction principale pour envoyer le message
+        function sendMessage(message) {
+            if (message === '') {
+                return;
+            }
+
+            // Nettoyer le champ de saisie seulement si l'action vient de là
+            if (userInput.value.trim() !== '') {
+                userInput.value = '';
+            }
+
+            // 1. Afficher le message de l'utilisateur
+            appendMessage(message, 'user');
+            
+            // 2. Envoyer le message au serveur Flask (route /chat)
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message: message }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                // 3. Afficher la réponse du Bot
+                const botResponse = data.response || "Désolé, je n'ai pas pu obtenir de réponse.";
+                appendMessage(botResponse, 'bot');
+            })
+            .catch(error => {
+                console.error('Erreur de communication avec le serveur:', error);
+                appendMessage("🤖 Une erreur est survenue lors de la connexion.", 'bot');
+            });
+        }
+
+        // Fonction utilitaire pour ajouter une bulle de message à l'écran
+        function appendMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message');
+            
+            if (sender === 'user') {
+                messageDiv.classList.add('user-message');
+            } else {
+                messageDiv.classList.add('bot-message');
+                text = '🤖 ' + text; // Ajout de l'emoji Bot
+            }
+
+            const p = document.createElement('p');
+            p.textContent = text;
+            messageDiv.appendChild(p);
+            chatDisplay.appendChild(messageDiv);
+            
+            // Faire défiler l'affichage vers le bas
+            chatDisplay.scrollTop = chatDisplay.scrollHeight;
+        }
+    });
+    </script>
+</body>
+</html>
