@@ -3,7 +3,6 @@
 Projet Tutoré – Licence 3 Génie Logiciel – Analyse de Données  
 Par : **GOUBA Georgette**
 
----
 
 ## 🎯 Présentation du Projet
 
@@ -12,7 +11,6 @@ Il utilise le NLP (SpaCy) et un backend Flask pour comprendre les requêtes des 
 
 Ce projet simule les services de la banque **ORABANK** du Burkina Faso.
 
----
 
 ## 🧠 Fonctionnalités Principales
 
@@ -27,8 +25,6 @@ Ce projet simule les services de la banque **ORABANK** du Burkina Faso.
 - 💾 Sauvegarde des interactions en base PostgreSQL
 - 💬 Interface web de chatbot (HTML/CSS + Flask)
 
----
-
 ## 🏗️ Architecture du Projet
 
 
@@ -41,8 +37,6 @@ Modèle NLP SpaCy (TextCat)
 ↓
 Base de données PostgreSQL
 
-
----
 
 ## 📦 Technologies Utilisées
 
@@ -59,7 +53,6 @@ Base de données PostgreSQL
 ### Base de Données
 - PostgreSQL  
 
----
 
 ## 📚 Structure du Dépôt
 
@@ -76,7 +69,6 @@ README.md → Documentation du projet
 rapport_oraflex.pdf → Rapport du projet (à ajouter)
 
 
----
 
 ## ▶️ Installation & Exécution
 
@@ -122,16 +114,6 @@ message
 GOUBA Georgette
 Licence 3 Génie Logiciel – Analyse de Données
 Université virtuelle de Ouagadougou
-
-📧 Encadrant
-
-Monsieur 
-Ajouté comme collaborateur GitHub
-
-📄 Rapport
-
-Le rapport complet du projet est disponible dans :
-
 
 📌 Licence
 
