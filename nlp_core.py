@@ -1,6 +1,9 @@
 import spacy
 import random
-from bank_intents import intents_data 
+import os
+from bank_response import intents_data 
+from db_core import get_account_balance, execute_transfer
+
 # Importation des fonctions de la base de données (lecture et écriture)
 from db_core import get_account_balance, execute_transfer 
 
@@ -14,12 +17,19 @@ conversation_context = {
     "amount": None 
 }
 
-# Charger le modèle linguistique
+# Charger le modèle linguistique : si on a un modèle entraîné disponible, le charger,
+# sinon essayer de charger le modèle fr_core_news_sm installé sinon tomber à None.
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "model", "model_orabank")
 try:
-    nlp = spacy.load("fr_core_news_sm")
+    if os.path.exists(MODEL_PATH):
+        nlp = spacy.load(MODEL_PATH)
+        print(f"Chargement du modèle entraîné: {MODEL_PATH}")
+    else:
+        nlp = spacy.load("fr_core_news_sm")
+        print("Chargement du modèle 'fr_core_news_sm' (pipeline linguistique)")
 except OSError:
-    print("ATTENTION : Le modèle SpaCy 'fr_core_news_sm' n'est pas trouvé. Les similarités ne fonctionneront pas.")
-    nlp = None 
+    print("ATTENTION : Aucun modèle SpaCy trouvé. Les similarités ne fonctionneront pas.")
+    nlp = None
 
 # Définir le seuil de similarité
 SIMILARITY_THRESHOLD = 0.65
@@ -59,18 +69,49 @@ def extract_recipient(user_message):
 # --- FONCTION PRINCIPALE ---
 def find_intent(user_message, client_id): # <-- client_id est le nouvel argument
     global conversation_context
+    # Normaliser le message tout de suite
+    message_lower = user_message.lower()
     if any(keyword in message_lower for keyword in ["bonjour", "salut", "coucou", "hello"]):
-        return 'greeting',
+        # Prioritize greeting without text processing
+        best_g = next(item for item in intents_data if item["intent"] == "salutation")
+        return random.choice(best_g["responses"])
     if nlp is None:
         return "Le moteur NLP est désactivé."
-        
     doc_user = nlp(user_message.lower())
     best_intent = "inconnu"
     highest_similarity = SIMILARITY_THRESHOLD
     message_lower = user_message.lower()
 
-    # --- 1. GESTION DU CONTEXTE (Tour 2+) ---
-    
+    # --- 1. PRÉDICTION AVEC textcat si disponible (modèle entraîné) ---
+    use_textcat = nlp is not None and ("textcat" in getattr(nlp, "pipe_names", []))
+    TEXTCAT_THRESHOLD = 0.5
+
+    # Map labels if model uses slightly different names
+    INTENT_LABEL_MAP = {
+        "faire_virement": "virement",
+    }
+
+    predicted_new_intent = None
+    predicted_new_score = 0.0
+    if use_textcat:
+        cats = doc_user.cats
+        if cats:
+            pred = max(cats, key=cats.get)
+            predicted_new_intent = INTENT_LABEL_MAP.get(pred, pred)
+            predicted_new_score = cats[pred]
+
+    # If the user is in the middle of a flow and now clearly asks for a different intent,
+    # clear context so we can treat the message as a new intent.
+    if conversation_context.get("awaiting_entity") and predicted_new_intent and predicted_new_intent != conversation_context.get("last_intent") and predicted_new_score >= TEXTCAT_THRESHOLD:
+        # If we're awaiting an amount and the user provided an amount, keep the context
+        if conversation_context.get("awaiting_entity") == "amount" and extract_amount(message_lower):
+            pass
+        else:
+            conversation_context["last_intent"] = None
+            conversation_context["awaiting_entity"] = None
+            conversation_context["amount"] = None
+
+    # --- 2. GESTION DU CONTEXTE (Tour 2+) ---
     # Logique solde_compte (attend account_type)
     if conversation_context["awaiting_entity"] == "account_type":
         account_type = extract_account_type(message_lower)
@@ -119,6 +160,17 @@ def find_intent(user_message, client_id): # <-- client_id est le nouvel argument
                 return "Veuillez entrer un nom pour le destinataire."
 
 
+    # --- PRÉDICTION AVEC textcat si disponible (modèle entraîné) ---
+    # (This block now handles the classification when context is not overriding.)
+
+    if best_intent not in ["solde_compte", "virement"] and use_textcat:
+        cats = doc_user.cats
+        if cats:
+            pred = max(cats, key=cats.get)
+            score = cats[pred]
+            if score >= TEXTCAT_THRESHOLD:
+                best_intent = INTENT_LABEL_MAP.get(pred, pred)
+                highest_similarity = score
     # Si le contexte est vide, détection de similarité classique
     if best_intent not in ["solde_compte", "virement"]:
         for intent_group in intents_data:

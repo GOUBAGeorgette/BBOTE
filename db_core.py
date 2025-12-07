@@ -11,6 +11,16 @@ def get_account_balance(client_id, account_type):
         return DATABASE[client_id][account_type]
     return None
 
+
+
+def execute_transfer(client_id, account_type, amount):
+    """
+    Placeholder pour la fonction de virement. 
+    Pour l'instant, elle retourne toujours True pour simuler le succès.
+    """
+    
+    return True
+
 def execute_transfer(client_id, source_account, amount):
     """
     Simule l'exécution d'un virement en débitant le compte source.

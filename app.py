@@ -1,135 +1,162 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session
-from nlp_core import find_intent 
-import os 
-from urllib.parse import unquote 
-
-# --- Base de Données Clients (CLEAN et COMPLET) ---
-CLIENTS_DB = {
-    "pierre.durand@mail.com": {
-        "prenom": "Pierre",
-        "nom": "Durand",
-        "password": "pierre123",
-        "id_client": "101"
-    },
-    "alice.dupont@mail.com": {
-        "prenom": "Alice",
-        "nom": "Dupont",
-        "password": "alice123",
-        "id_client": "102"
-    },
-    "georgette.gouba@mail.com": {
-        "prenom": "Georgette",
-        "nom": "Gouba",
-        "password": "Geogeo123",
-        "id_client": "103"
-    }
-}
-# --------------------------------------------------------
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
+import os
+import spacy
+import random
+from bank_response import RESPONSES
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24) 
+app.secret_key = os.urandom(24)
 
-# --- Route de Chatbot (FIX: Passage de l'ID Client) ---
+# --- PostgreSQL configuration ---
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:mondieujetaime@localhost/banque_chatbot_db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+
+# --- Table Client ---
+class Client(db.Model):
+    __tablename__ = 'client'
+    id_client = db.Column(db.Integer, primary_key=True)
+    prenom = db.Column(db.String(50), nullable=False)
+    nom = db.Column(db.String(50), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(200), nullable=False)
+
+# --- Table Messages ---
+class Message(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    client_id = db.Column(db.Integer, db.ForeignKey('client.id_client'), nullable=False)
+    role = db.Column(db.String(10))
+    content = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=db.func.now())
+
+# --- Création des tables ---
+with app.app_context():
+    db.create_all()
+
+# --- Chargement du modèle spaCy ---
+nlp = spacy.load(r"C:\Users\Pc\Desktop\DATA ANALYSE\CHATBOT_BANQUE\model\model_orabank")
+
+# --- Fonction intention spaCy ---
+def find_intent(user_message, client_id=None):
+    doc = nlp(user_message)
+
+    if not hasattr(doc, 'cats') or not doc.cats:
+        return "Je n'ai pas pu comprendre votre demande.", ""
+
+    intent = max(doc.cats, key=lambda k: doc.cats[k])
+
+    # Récupération des réponses
+    resp_list = RESPONSES.get(intent, ["Désolé, je ne sais pas répondre à cette demande."])
+
+    # Sélection aléatoire si liste
+    if isinstance(resp_list, list):
+        response = random.choice(resp_list)
+    else:
+        response = resp_list
+
+    return response, intent
+
+# --- Route du chat ---
 @app.route('/chat', methods=['POST'])
 def chat():
-    # 🚨 FIX CRITIQUE : Récupération de l'ID client de la session 🚨
     if not session.get('logged_in'):
-        return jsonify({"response": "Vous devez être connecté pour utiliser le chat."}), 401
-    
-    # L'ID client est stocké dans la session après la connexion
+        return jsonify({"response": "Vous devez être connecté pour utiliser le chat.", "intent": ""}), 401
+
     client_id = session.get('id_client')
-    user_message = request.json.get('message')
-    
-    # 🚨 FIX CRITIQUE : L'ID client est passé à find_intent 🚨
-    # NOTE: L'ID client est stocké en chaîne, nous le convertissons en entier si nécessaire plus tard.
-    bot_response = find_intent(user_message, int(client_id)) 
-    
-    return jsonify({"response": bot_response})
+    user_message = request.json.get('message', '')
 
+    bot_response, intent = find_intent(user_message, client_id)
 
-# --- Routes d'Authentification et de Navigation (Manquantes) ---
+    # Enregistrer le message utilisateur
+    msg_user = Message(client_id=client_id, role="user", content=user_message)
+    db.session.add(msg_user)
 
+    # Enregistrer la réponse du bot
+    msg_bot = Message(client_id=client_id, role="bot", content=bot_response)
+    db.session.add(msg_bot)
+
+    db.session.commit()
+
+    return jsonify({"response": bot_response, "intent": intent})
+
+# --- Page home ---
 @app.route('/')
 def home():
-    """Affiche la page de chat, mais seulement si l'utilisateur est connecté."""
     if not session.get('logged_in'):
         return redirect(url_for('login'))
-        
     full_name = f"{session.get('prenom', 'Utilisateur')} {session.get('nom', '')}"
     return render_template('index.html', username=full_name)
 
+# --- Login ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """Gère le processus de connexion."""
-    success_message = request.args.get('success') 
-    
-    if request.method == 'POST':
-        email_attempt = request.form.get('email', '').lower()
-        prenom_attempt = request.form.get('prenom', '').capitalize()
-        nom_attempt = request.form.get('nom', '').capitalize()
-        password_attempt = request.form.get('password')
-
-        if email_attempt in CLIENTS_DB:
-            client_data = CLIENTS_DB[email_attempt]
-            
-            if (password_attempt == client_data['password'] and
-                prenom_attempt == client_data['prenom'] and
-                nom_attempt == client_data['nom']):
-                
-                # Succès : Enregistrement de la session
-                session['logged_in'] = True
-                session['prenom'] = client_data['prenom']
-                session['nom'] = client_data['nom']
-                # Stockage de l'ID client dans la session
-                session['id_client'] = client_data['id_client'] 
-                return redirect(url_for('home'))
-        
-        return render_template('login.html', error='Identifiants incorrects.')
-            
-    return render_template('login.html', error=None, success=success_message)
-
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    """Gère l'inscription des nouveaux utilisateurs avec confirmation du mot de passe."""
-    # Le reste de ta logique /register est ici...
+    success_message = request.args.get('success')
     if request.method == 'POST':
         email = request.form.get('email', '').lower()
+        password = request.form.get('password')
+
+        user = Client.query.filter_by(email=email).first()
+        if user and check_password_hash(user.password, password):
+            session['logged_in'] = True
+            session['prenom'] = user.prenom
+            session['nom'] = user.nom
+            session['id_client'] = user.id_client
+            return redirect(url_for('home'))
+        
+        return render_template('login.html', error="Identifiants incorrects.", success=None)
+
+    return render_template('login.html', error=None, success=success_message)
+
+# --- Register ---
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
         prenom = request.form.get('prenom', '').capitalize()
         nom = request.form.get('nom', '').capitalize()
+        email = request.form.get('email', '').lower()
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
-
-        # 1. Vérification de la confirmation du mot de passe
+        
         if password != confirm_password:
-            return render_template('register.html', error='Les mots de passe ne correspondent pas.')
-
-        # 2. Vérification si l'utilisateur existe déjà
-        if email in CLIENTS_DB:
-            return render_template('register.html', error='Cet email est déjà enregistré.')
-
-        # 3. Création du nouvel ID client et ajout
-        last_id = max(int(data["id_client"]) for data in CLIENTS_DB.values()) if CLIENTS_DB else 100
-        new_id = str(last_id + 1)
+            return render_template('register.html', error="Les mots de passe ne correspondent pas.")
         
-        CLIENTS_DB[email] = {
-            "prenom": prenom,
-            "nom": nom,
-            "password": password,
-            "id_client": new_id
-        }
+        if Client.query.filter_by(email=email).first():
+            return render_template('register.html', error="Cet email est déjà enregistré.")
         
-        return redirect(url_for('login', success='Inscription réussie ! Veuillez vous connecter.'))
+        hashed_password = generate_password_hash(password)
+        new_user = Client(prenom=prenom, nom=nom, email=email, password=hashed_password)
+        db.session.add(new_user)
+        db.session.commit()
+        
+        return redirect(url_for('login', success="Inscription réussie ! Veuillez vous connecter."))
 
     return render_template('register.html', error=None)
 
-
+# --- Logout ---
 @app.route('/logout')
 def logout():
-    """Déconnecte l'utilisateur en vidant la session."""
     session.clear()
-    return redirect(url_for('login')) 
+    return redirect(url_for('login'))
 
-# 🚨 LIGNE CRITIQUE MANQUANTE POUR LANCER LE SERVEUR 🚨
-if __name__ == '__main__':
-    app.run(debug=True)
+# --- Health Check ---
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({"status": "ok"}), 200
+
+# --- Historique du chat ---
+@app.route('/chat/history', methods=['GET'])
+def chat_history():
+    if not session.get('logged_in'):
+        return jsonify([]), 401
+
+    client_id = session.get('id_client')
+    messages = Message.query.filter_by(client_id=client_id).order_by(Message.timestamp.asc()).all()
+
+    return jsonify([{"role": m.role, "content": m.content} for m in messages])
+
+# --- RUN ---
+if __name__ == "__main__":
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=True, host='127.0.0.1', port=port)

@@ -8,28 +8,27 @@
 </head>
 <body>
     <div id="app-container">
-        
         <header id="main-header">
             <div class="logo-title">
-                <span style="font-size: 1.5em;">🏦</span> 
-                <h1>BanqueBot</h1>
+                <span style="font-size: 1.5em;"></span> 
+                <h1>Oraflex ChatBot</h1>
             </div>
             <div>
-                <span id="user-name">{{ username }}</span> 
-                <button onclick="window.location.href='{{ url_for('logout') }}'" id="logout-button">Déconnexion</button>
+                <span id="user-name">{{ username }}</span>
+                <a id="logout-button" href="{{ url_for('logout') }}">Déconnexion</a>
             </div>
         </header>
 
         <div id="chat-container">
-            
             <div id="chat-display">
-                <div class="bot-message">  Bienvenue au BanqueBot votre assistant virtuel. Que puis-je faire pour vous ?</div>
+                <div class="bot-message">🤖 Bienvenue au Oraflex ChatBot votre assistant virtuel. Que puis-je faire pour vous ?</div>
+                <button id="scroll-to-bottom" title="Aller en bas">⬇</button>
             </div>
 
             <div id="quick-actions">
-                <button class="action-btn" data-action="Quel est mon solde courant ?">💰 Mon solde</button>
+                <button class="action-btn" data-action="Je veux consulter mon solde">💰 Mon solde</button>
                 <button class="action-btn" data-action="Faire un virement">💸 Virement</button>
-                <button class="action-btn" data-action="Historique des transactions">📜 Historique</button>
+                <button class="action-btn" data-action="Historique">📜 Historique</button>
                 <button class="action-btn" data-action="Aide">❓ Aide</button>
             </div>
 
@@ -37,7 +36,6 @@
                 <input type="text" id="user-input" placeholder="Posez votre question...">
                 <button id="send-button">➤</button>
             </div>
-            
         </div>
     </div>
     
@@ -46,81 +44,103 @@
         const chatDisplay = document.getElementById('chat-display');
         const userInput = document.getElementById('user-input');
         const sendButton = document.getElementById('send-button');
-        const quickActionButtons = document.querySelectorAll('#quick-actions .action-btn');
+        const quickActionsContainer = document.getElementById('quick-actions');
+        const scrollButton = document.getElementById('scroll-to-bottom');
 
-        // Écouteurs pour le bouton d'envoi et la touche Entrée
-        sendButton.addEventListener('click', () => {
-            sendMessage(userInput.value.trim());
-        });
+        let userIsAtBottom = true;
+        const SCROLL_THRESHOLD = 80;
 
-        userInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                sendMessage(userInput.value.trim());
-            }
-        });
-        
-        // Écouteurs pour les boutons d'actions rapides
-        quickActionButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                const actionText = button.getAttribute('data-action');
-                sendMessage(actionText); // Utilise la même fonction pour envoyer le message
-            });
-        });
-
-        // Fonction principale pour envoyer le message
-        function sendMessage(message) {
-            if (message === '') {
-                return;
-            }
-
-            // Nettoyer le champ de saisie seulement si l'action vient de là
-            if (userInput.value.trim() !== '') {
-                userInput.value = '';
-            }
-
-            // 1. Afficher le message de l'utilisateur
-            appendMessage(message, 'user');
-            
-            // 2. Envoyer le message au serveur Flask (route /chat)
-            fetch('/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ message: message }),
-            })
-            .then(response => response.json())
-            .then(data => {
-                // 3. Afficher la réponse du Bot
-                const botResponse = data.response || "Désolé, je n'ai pas pu obtenir de réponse.";
-                appendMessage(botResponse, 'bot');
-            })
-            .catch(error => {
-                console.error('Erreur de communication avec le serveur:', error);
-                appendMessage("🤖 Une erreur est survenue lors de la connexion.", 'bot');
-            });
+        // --- Scroll automatique ---
+        function checkIfAtBottom() {
+            userIsAtBottom = (chatDisplay.scrollHeight - chatDisplay.scrollTop - chatDisplay.clientHeight) <= SCROLL_THRESHOLD;
+            scrollButton.style.display = userIsAtBottom ? 'none' : 'block';
         }
 
-        // Fonction utilitaire pour ajouter une bulle de message à l'écran
+        chatDisplay.addEventListener('scroll', checkIfAtBottom);
+        scrollButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            chatDisplay.scrollTo({ top: chatDisplay.scrollHeight, behavior: 'smooth' });
+        });
+
+        // --- Ajouter message ---
         function appendMessage(text, sender) {
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('message');
-            
             if (sender === 'user') {
                 messageDiv.classList.add('user-message');
             } else {
                 messageDiv.classList.add('bot-message');
-                text = '🤖 ' + text; // Ajout de l'emoji Bot
+                text = '🤖 ' + text;
             }
-
             const p = document.createElement('p');
             p.textContent = text;
             messageDiv.appendChild(p);
             chatDisplay.appendChild(messageDiv);
-            
-            // Faire défiler l'affichage vers le bas
-            chatDisplay.scrollTop = chatDisplay.scrollHeight;
+
+            if (sender === 'user' || userIsAtBottom) {
+                try { chatDisplay.scrollTo({ top: chatDisplay.scrollHeight, behavior: 'smooth' }); } 
+                catch(e) { chatDisplay.scrollTop = chatDisplay.scrollHeight; }
+            }
         }
+
+        // --- Envoi message au serveur Flask ---
+        function sendMessage(message) {
+            if (!message) return;
+            if (userInput.value.trim() !== '') userInput.value = '';
+            appendMessage(message, 'user');
+
+            fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const botResponse = data.response || "Je n'ai pas compris votre demande.";
+                appendMessage(botResponse, 'bot');
+
+                // ✅ Dynamique : met à jour les actions rapides selon l’intention détectée
+                updateQuickActions(data.intent || null);
+            })
+            .catch(error => {
+                console.error('Erreur serveur:', error);
+                appendMessage("🤖 Une erreur est survenue lors de la connexion.", 'bot');
+            });
+        }
+
+        // --- Mise à jour dynamique des boutons d’action rapide ---
+        function updateQuickActions(intent) {
+            const actionsMap = {
+                "solde": ["Voir transactions récentes", "Consulter solde épargne"],
+                "virement": ["Virement interne", "Virement externe", "Annuler virement"],
+                "historique": ["Derniers 5 mouvements", "Mouvements par date"],
+                "aide": ["FAQ", "Contacter support", "Conseils sécurité"],
+                "autre": ["💰 Mon solde", "💸 Virement", "📜 Historique", "❓ Aide"]
+            };
+
+            const actions = actionsMap[intent] || actionsMap["autre"];
+            quickActionsContainer.innerHTML = "";
+            actions.forEach(action => {
+                const btn = document.createElement('button');
+                btn.classList.add('action-btn');
+                btn.textContent = action;
+                btn.dataset.action = action;
+                btn.addEventListener('click', () => sendMessage(action));
+                quickActionsContainer.appendChild(btn);
+            });
+        }
+
+        // --- Événements input et boutons ---
+        sendButton.addEventListener('click', () => sendMessage(userInput.value.trim()));
+        userInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(userInput.value.trim()); });
+
+        // Scroll automatique avec observer
+        const observer = new MutationObserver(() => { if (userIsAtBottom) chatDisplay.scrollTop = chatDisplay.scrollHeight; });
+        observer.observe(chatDisplay, { childList: true, subtree: true });
+
+        // Scroll initial
+        chatDisplay.scrollTop = chatDisplay.scrollHeight;
+        checkIfAtBottom();
     });
     </script>
 </body>

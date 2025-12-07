@@ -1,56 +1,84 @@
 /* Styles généraux pour le corps de la page */
+html, body {
+    height: 100%;
+}
+
 body {
     font-family: 'Roboto', sans-serif;
     background-color: #f4f7f6; /* Gris clair */
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: stretch; /* Allow container to stretch full viewport height */
     min-height: 100vh;
     margin: 0;
 }
 
 /* Conteneur de l'application (pour l'ombre générale) */
+/* App container: occupy full width/height by default */
+/* add box-sizing */
+*, *::before, *::after { box-sizing: border-box; }
+
 #app-container {
-    width: 90%; /* Prend 90% de la largeur de l'écran */
+    width: 100%;
     /* 💥 CORRECTION DE LARGEUR : Augmentation de la taille maximale */
-    max-width: 1500px; 
+    max-width: 100%;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.925); 
-    border-radius: 15px;
+    border-radius: 0; /* Occupy whole viewport — no rounded corners */
     overflow: hidden;
     background-color: white;
     
     /* Propriétés de hauteur et de flexbox (conservées) */
     height: 100vh; 
+    padding-top: 64px; /* reserve space for fixed header */
     display: flex;
     flex-direction: column; 
 }
 
 /* En-tête du Chatbot avec le Dégradé (Turquoise) */
+/* Make header fixed at top of viewport to not be affected by scrolling in chat */
 #main-header {
     /* Dégradé de couleurs : Turquoise / Cyan */
     background: linear-gradient(135deg, #008080 0%, #40E0D0 100%);
     color: white;
-    padding: 15px 20px;
+    padding: 10px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    height: 64px;
+    min-height: 64px;
+    white-space: nowrap; /* prevent header content wrapping */
+    gap: 12px;
+    overflow: hidden; /* avoid header growing with long content */
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
 }
+/* Flex behavior: header and input are fixed, display area grows */
+#main-header { flex: 0 0 auto; }
 
 .logo-title {
     display: flex;
     align-items: center;
+    flex: 0 0 auto; /* keep logo fixed size */
 }
 
 .logo-title h1 {
     margin: 0;
-    font-size: 1.4em;
+    font-size: 1.2em;
     padding-left: 10px;
 }
 
 #user-name {
     font-weight: bold;
     margin-right: 10px;
+    max-width: 220px;
+    display: inline-block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 #logout-button {
@@ -64,20 +92,119 @@ body {
     transition: background-color 0.3s;
 }
 
+/* Ensure right side of header (username + logout) can shrink and align to the right */
+#main-header > div:last-child {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex: 1 1 auto;
+    min-width: 0; /* allow ellipsis on username */
+    gap: 8px;
+}
+
 /* Corps du Chat */
+/* chat container sits below header, it takes remaining height */
 #chat-container {
-    flex-grow: 1; /* S'étend pour prendre la hauteur disponible */
+    flex: 1 1 auto; /* S'étend pour prendre la hauteur disponible */
     display: flex;
     flex-direction: column;
+    min-height: calc(100vh - 64px); /* ensure space for header */
 }
 
 /* Zone d'affichage des messages */
+/* Zone d'affichage des messages */
+/* Zone d'affichage des messages */
+/* Zone d'affichage des messages */
 #chat-display {
-    flex-grow: 1; /* TRÈS IMPORTANT: Cette zone prend tout l'espace vertical libre */
+    flex: 1 1 auto; /* TRÈS IMPORTANT: Cette zone prend tout l'espace vertical libre */
     padding: 20px;
+    padding-bottom: 110px; /* space at bottom so last message is never hidden behind input */
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+    justify-content: flex-end; /* keep latest messages at bottom */
+    min-height: 0; /* allows flex child to shrink when space is limited */
+    position: relative; /* anchor for scroll-to-bottom button */
+}
+
+/* Scroll to bottom button */
+#scroll-to-bottom {
+    position: absolute;
+    right: 18px;
+    bottom: 115px; /* above input area */
+    z-index: 20;
+    background-color: #009688;
+    color: white;
+    border: none;
+    width: 42px;
+    height: 42px;
+    display: none; /* hidden by default */
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+@media (max-width: 600px) {
+    #scroll-to-bottom { right: 12px; bottom: 110px; width: 38px; height: 38px; }
+}
+
+/* Messages style — align left for bot, right for user */
+.message {
+    display: inline-block;
+    max-width: 75%;
+    padding: 10px 14px;
+    margin: 6px 0;
+    border-radius: 12px;
+    line-height: 1.3;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    word-wrap: break-word;
+}
+
+.message p { margin: 0; }
+
+/* User message text align and wrap */
+.user-message { text-align: right; }
+
+/* Make sure chat input and quick action area are always visible */
+#quick-actions, #chat-input-area { z-index: 2; }
+
+/* Small screen responsiveness */
+@media (max-width: 600px) {
+    #app-container { width: 100%; border-radius: 0; }
+    .message { max-width: 90%; }
+    #logout-button { display: none; } /* header simplified on small screens */
+}
+
+.bot-message {
+    background-color: #f1f7fa; /* très clair bleu */
+    color: #042a2b;
+    align-self: flex-start; /* aligné à gauche */
+    border-radius: 12px 12px 12px 4px;
+}
+
+.user-message {
+    background-color: #009688; /* vert émeraude */
+    color: #fff;
+    align-self: flex-end; /* aligné à droite */
+    border-radius: 12px 12px 4px 12px;
+}
+
+/* Messages container to ensure vertical grow and scroll to bottom behaviour */
+#chat-display .message:first-child {
+    margin-top: 6px;
+}
+
+/* When message container grows, allow the chat to use full height (already defined above) */
+
+/* Scrollbar styling (optional) */
+#chat-display::-webkit-scrollbar {
+    width: 10px;
+}
+#chat-display::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.15);
+    border-radius: 10px;
 }
 
 /* --- Styles des boutons d'action rapide --- */
@@ -112,6 +239,8 @@ body {
     display: flex;
     padding: 15px 20px;
     border-top: 1px solid #eeeeee; /* Gris */
+    background-color: #fff; /* separate input visually */
+    flex: 0 0 auto; /* fixation de l'aire d'entrée */
 }
 
 #user-input {
@@ -144,3 +273,18 @@ body {
 }
 
 /* Suppression des styles #chat-box non utilisés */
+
+.barre-categories {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background-color: #f8f8f8;
+    padding: 10px 0;
+    display: flex;
+    justify-content: space-around;
+    z-index: 1000;
+}
+
+.contenu-chat {
+    padding-bottom: 60px; /* hauteur de la barre */
+}
